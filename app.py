@@ -50,15 +50,20 @@ def indent(lines, level=1):
 
 def analyze_code(code: str):
     tree = ast.parse(code)
+
     functions = []
     classes = []
 
-    for node in ast.walk(tree):
+    for node in tree.body:
+
+        # Top-level functions only
         if isinstance(node, ast.FunctionDef):
             functions.append({
                 "name": node.name,
                 "args": [arg.arg for arg in node.args.args],
             })
+
+        # Classes and their methods
         elif isinstance(node, ast.ClassDef):
             methods = []
             for item in node.body:
@@ -67,10 +72,12 @@ def analyze_code(code: str):
                         "name": item.name,
                         "args": [a.arg for a in item.args.args if a.arg != "self"],
                     })
-            classes.append({"class_name": node.name, "methods": methods})
+            classes.append({
+                "class_name": node.name,
+                "methods": methods
+            })
 
     return functions, classes
-
 
 # ─────────────────────────────────────────
 # CODE BUILDERS
