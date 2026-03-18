@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PyForge — Backend Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;
+  --surface:#161b22;
+  --surface2:#1c2230;
+  --surface3:#21293a;
+  --border:rgba(139,163,196,0.1);
+  --border2:rgba(139,163,196,0.18);
+  --border3:rgba(139,163,196,0.28);
+  --indigo:#7c8cf8;
+  --indigo2:#5c6ef5;
+  --indigo-dim:rgba(124,140,248,0.1);
+  --indigo-glow:rgba(124,140,248,0.2);
+  --cyan:#56d6c8;
+  --cyan-dim:rgba(86,214,200,0.1);
+  --violet:#c084fc;
+  --violet-dim:rgba(192,132,252,0.1);
+  --amber:#f0b429;
+  --red:#f87171;
+  --red-dim:rgba(248,113,113,0.1);
+  --green:#4ade80;
+  --green-dim:rgba(74,222,128,0.1);
+  --text:#cdd9ea;
+  --text2:#8b9fc4;
+  --text3:#566a8a;
+  --text-inv:#0d1117;
+  --r:8px;
+  --rl:12px;
+  --sans:'IBM Plex Sans',sans-serif;
+  --mono:'IBM Plex Mono','JetBrains Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
+.shell{display:grid;grid-template-columns:256px 1fr;min-height:100vh}
+
+/* Sidebar */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-top{padding:20px 16px 18px;border-bottom:1px solid var(--border)}
+.sb-wordmark{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.sb-icon{width:28px;height:28px;background:var(--indigo-dim);border:1px solid var(--indigo-glow);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.sb-icon svg{width:14px;height:14px;stroke:var(--indigo);fill:none;stroke-width:2}
+.sb-name{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
+.sb-tagline{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:0.04em}
+.sb-nav{padding:12px 8px;flex:1}
+.sb-sec{font-size:9px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);padding:0 8px 8px}
+.step{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r);cursor:pointer;margin-bottom:1px;transition:background 0.12s;border:1px solid transparent}
+.step:hover{background:var(--surface2)}
+.step.active{background:var(--indigo-dim);border-color:rgba(124,140,248,0.2)}
+.step.done .step-n{background:var(--green-dim);color:var(--green);border-color:rgba(74,222,128,0.25)}
+.step-n{width:19px;height:19px;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:500;background:var(--surface3);color:var(--text3);border:1px solid var(--border2)}
+.step.active .step-n{background:var(--indigo);color:var(--text-inv);border-color:transparent}
+.step-label{font-size:12px;font-weight:500;color:var(--text)}
+.step-sub{font-size:10px;color:var(--text3);margin-top:1px}
+.sb-bottom{padding:12px 14px;border-top:1px solid var(--border);margin-top:auto}
+.stat-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.stat-row:last-child{margin-bottom:0}
+.stat-k{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.stat-v{font-size:10px;font-family:var(--mono);color:var(--text2)}
+.stat-v.file{color:var(--cyan);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Main */
+.main{display:flex;flex-direction:column}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:11px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.tb-left{display:flex;align-items:center;gap:10px}
+.tb-title{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text2)}
+.tb-sep{color:var(--border3)}
+.mode-pill{font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;letter-spacing:0.04em}
+.pill-i{background:var(--indigo-dim);color:var(--indigo);border:1px solid rgba(124,140,248,0.25)}
+.pill-v{background:var(--violet-dim);color:var(--violet);border:1px solid rgba(192,132,252,0.25)}
+.progress-bar{height:1px;background:var(--surface3)}
+.progress-fill{height:100%;background:var(--indigo);width:0%;display:none}
+.progress-fill.loading{display:block;animation:ppulse 1.4s ease-in-out infinite}
+@keyframes ppulse{0%{width:0%}50%{width:70%}100%{width:90%}}
+.content{padding:20px 24px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.card-hd{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background 0.12s}
+.card-hd:hover{background:var(--surface2)}
+.card-hd-l{display:flex;align-items:center;gap:9px}
+.card-ico{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ico-i{background:var(--indigo-dim)} .ico-i svg{stroke:var(--indigo)}
+.ico-c{background:var(--cyan-dim)} .ico-c svg{stroke:var(--cyan)}
+.ico-v{background:var(--violet-dim)} .ico-v svg{stroke:var(--violet)}
+.ico-g{background:var(--green-dim)} .ico-g svg{stroke:var(--green)}
+.card-ico svg{width:13px;height:13px;stroke-width:2;fill:none}
+.card-title{font-size:13px;font-weight:600;color:var(--text)}
+.card-sub{font-size:10px;color:var(--text3);margin-top:1px;font-family:var(--mono)}
+.chevron{color:var(--text3);font-size:9px;transition:transform 0.16s}
+.chevron.open{transform:rotate(180deg)}
+.card-body{padding:15px}
+.card-body.hidden{display:none}
+
+/* Upload */
+.upload-zone{border:1px dashed var(--border2);border-radius:var(--rl);padding:26px 18px;text-align:center;cursor:pointer;transition:all 0.15s;position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--indigo);background:var(--indigo-dim)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon svg{width:26px;height:26px;stroke:var(--text3);stroke-width:1.5;fill:none;margin-bottom:7px}
+.upload-zone:hover .uz-icon svg,.upload-zone.drag .uz-icon svg{stroke:var(--indigo)}
+.uz-label{font-size:13px;font-weight:500;margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--text3)}
+.file-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:20px;font-family:var(--mono);font-size:10px;color:var(--cyan);margin-top:9px}
+
+/* Mode toggle */
+.mode-toggle{display:flex;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;margin-top:12px}
+.mode-btn{flex:1;padding:8px;text-align:center;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.13s;background:transparent;color:var(--text3);border:none;font-family:var(--sans)}
+.mode-btn:first-child{border-right:1px solid var(--border2)}
+.mode-btn.active{background:var(--indigo-dim);color:var(--indigo)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--r);border:1px solid;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--sans);transition:all 0.13s;white-space:nowrap}
+.btn-primary{background:var(--indigo);color:var(--text-inv);border-color:var(--indigo)}
+.btn-primary:hover{background:var(--indigo2)}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-ghost:hover{color:var(--text);background:var(--surface2)}
+.btn-cyan{background:var(--cyan-dim);color:var(--cyan);border-color:rgba(86,214,200,0.25)}
+.btn-cyan:hover{background:rgba(86,214,200,0.17)}
+.btn-violet{background:var(--violet-dim);color:var(--violet);border-color:rgba(192,132,252,0.25)}
+.btn-violet:hover{background:rgba(192,132,252,0.17)}
+.btn:disabled{opacity:0.35;cursor:not-allowed;pointer-events:none}
+.btn svg{width:12px;height:12px;stroke-width:2;fill:none;stroke:currentColor}
+
+/* Endpoints */
+.ep-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ep-count{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.ep-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ep-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all 0.13s;background:var(--surface2)}
+.ep-item:hover{border-color:var(--border2)}
+.ep-item.sel{border-color:rgba(124,140,248,0.35);background:var(--indigo-dim)}
+.ep-box{width:13px;height:13px;border-radius:3px;border:1px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.13s}
+.ep-item.sel .ep-box{background:var(--indigo);border-color:var(--indigo)}
+.ep-tick{display:none;font-size:9px;color:var(--text-inv);font-weight:700}
+.ep-item.sel .ep-tick{display:block}
+.ep-name{font-family:var(--mono);font-size:11px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ep-badge{font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0}
+.ep-fn{background:var(--cyan-dim);color:var(--cyan)}
+.ep-cls{background:var(--violet-dim);color:var(--violet)}
+.ep-empty{text-align:center;padding:26px;color:var(--text3);font-size:12px;font-family:var(--mono)}
+
+/* Code */
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:8px 13px;background:var(--surface3);border-bottom:1px solid var(--border)}
+.code-meta{display:flex;align-items:center;gap:7px}
+.code-dot{width:5px;height:5px;border-radius:50%;background:var(--indigo);opacity:0.7}
+.code-filename{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.code-area{background:#090d13;padding:13px 15px;font-family:var(--mono);font-size:12px;line-height:1.75;color:#7dd3b8;min-height:220px;max-height:400px;overflow:auto;white-space:pre;outline:none}
+.code-footer{display:flex;gap:7px;flex-wrap:wrap;padding:9px 13px;background:var(--surface3);border-top:1px solid var(--border)}
+
+/* Error */
+.err{background:var(--red-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--r);padding:9px 12px;margin-top:9px;font-family:var(--mono);font-size:11px;color:var(--red);display:none;word-break:break-all}
+
+/* Modal */
+.modal-wrap{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.72);align-items:center;justify-content:center}
+.modal-wrap.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);width:410px;max-width:95vw;overflow:hidden;animation:mIn 0.15s ease}
+@keyframes mIn{from{opacity:0;transform:translateY(-8px) scale(0.98)}to{opacity:1;transform:none}}
+.modal-hd{padding:15px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:13px;font-weight:600;font-family:var(--mono)}
+.modal-x{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1}
+.modal-x:hover{color:var(--text)}
+.modal-bd{padding:17px}
+.modal-ft{padding:11px 17px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px}
+.info-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:13px;display:flex;gap:8px;align-items:flex-start}
+.info-block svg{width:13px;height:13px;flex-shrink:0;margin-top:1px;stroke:var(--amber);stroke-width:1.8;fill:none}
+.info-title{font-size:11px;font-weight:600;margin-bottom:2px;color:var(--text)}
+.info-text{font-size:10px;color:var(--text3)}
+.field{margin-bottom:11px}
+.field label{display:block;font-family:var(--mono);font-size:10px;font-weight:500;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em}
+.field input{width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border-color 0.13s}
+.field input:focus{border-color:rgba(124,140,248,0.45)}
+.field input::placeholder{color:var(--text3)}
+.field-hint{font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+
+/* Toast */
+.toast-shelf{position:fixed;bottom:18px;right:18px;z-index:200;display:flex;flex-direction:column;gap:6px}
+.toast{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:9px 13px;min-width:210px;display:flex;align-items:center;gap:8px;animation:tIn 0.18s ease}
+.toast.out{animation:tOut 0.15s ease forwards}
+@keyframes tIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@keyframes tOut{to{opacity:0;transform:translateX(14px)}}
+.toast-icon{font-size:11px;flex-shrink:0}
+.toast-msg{font-size:12px;font-weight:500}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sb-top">
+    <div class="sb-wordmark">
+      <div class="sb-icon">
+        <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </div>
+      <span class="sb-name">pyforge</span>
+    </div>
+    <div class="sb-tagline">python → backend generator</div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-sec">workflow</div>
+    <div class="step active" id="nav-s1" onclick="scrollToId('step1')">
+      <div class="step-n">1</div>
+      <div><div class="step-label">Upload File</div><div class="step-sub">select .py script</div></div>
+    </div>
+    <div class="step" id="nav-s2" onclick="scrollToId('step2')">
+      <div class="step-n">2</div>
+      <div><div class="step-label">Select Endpoints</div><div class="step-sub">choose routes to expose</div></div>
+    </div>
+    <div class="step" id="nav-s3" onclick="scrollToId('step3')">
+      <div class="step-n">3</div>
+      <div><div class="step-label">Generated Code</div><div class="step-sub">review output</div></div>
+    </div>
+    <div class="step" id="nav-s4" onclick="scrollToId('step4')">
+      <div class="step-n">4</div>
+      <div><div class="step-label">Export</div><div class="step-sub">download or push to github</div></div>
+    </div>
+  </nav>
+
+  <div class="sb-bottom">
+    <div class="stat-row"><span class="stat-k">mode</span><span class="stat-v" id="st-mode">fastapi</span></div>
+    <div class="stat-row"><span class="stat-k">endpoints</span><span class="stat-v" id="st-ep">0 selected</span></div>
+    <div class="stat-row"><span class="stat-k">file</span><span class="stat-v file" id="st-file">—</span></div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <span class="tb-title">Python → Backend Generator (Live demo — may take a few seconds to start)</span>
+      <span class="tb-sep">/</span>
+      <span class="mode-pill pill-i" id="top-mode-badge">FastAPI</span>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-violet" onclick="openGithubModal()">
+        <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        Push to GitHub
+      </button>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+
+  <div class="content">
+
+    <!-- Step 1 -->
+    <div class="card" id="step1">
+      <div class="card-hd" onclick="toggleCard('cb1','cv1')">
+        <div class="card-hd-l">
+          <div class="card-ico ico-i"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+          <div><div class="card-title">Upload Python File</div><div class="card-sub">step 1 — select your .py script</div></div>
+        </div>
+        <span class="chevron open" id="cv1">&#9660;</span>
+      </div>
+      <div class="card-body" id="cb1">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" accept=".py" id="fileInput"/>
+          <div class="uz-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div class="uz-label" id="upload-label">Drop .py file here</div>
+          <div class="uz-hint">or click to browse</div>
+          <div id="file-pill-wrap"></div>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="btn-fastapi" onclick="setMode('fastapi')">FastAPI</button>
+          <button class="mode-btn" id="btn-streamlit" onclick="setMode('streamlit')">Streamlit</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:13px;gap:8px;align-items:center">
+          <div id="analyze-error" class="err" style="flex:1;margin-top:0"></div>
+          <button class="btn btn-primary" onclick="analyze()" id="btn-analyze" disabled>
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Analyze
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="card" id="step2">
+      <div class="card-hd" onclick="toggleCard('cb2','cv2')">
+        <div class="card-hd-l">
+          <div class="card-ico ico-c"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div><div class="card-title">Select Endpoints</div><div class="card-sub" id="ep-subtitle">step 2 — analyze a file first</div></div>
+        </div>
+        <span class="chevron open" id="cv2">&#9660;</span>
+      </div>
+      <div class="card-body" id="cb2">
+        <div id="endpoint-content"><div class="ep-empty">Analyze a Python file to discover functions and class methods</div></div>
+        <div id="analyze-error2" class="err"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:13px">
+          <button class="btn btn-primary" onclick="generate()" id="btn-generate" disabled>
+            <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Generate Code
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="card" id="step3">
+      <div class="card-hd" onclick="toggleCard('cb3','cv3')">
+        <div class="card-hd-l">
+          <div class="card-ico ico-v"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+          <div><div class="card-title">Generated Code</div><div class="card-sub">step 3 — review output</div></div>
+        </div>
+        <span class="chevron open" id="cv3">&#9660;</span>
+      </div>
+      <div class="card-body" style="padding:0" id="cb3">
+        <div class="code-header">
+          <div class="code-meta"><span class="code-dot"></span><span class="code-filename" id="code-lang-label">python · main.py</span></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" style="padding:4px 9px;font-size:11px" onclick="copyCode()">Copy</button>
+            <button class="btn btn-ghost" style="padding:4px 9px;font-size:11px" onclick="downloadCode()">Download</button>
+          </div>
+        </div>
+        <div class="code-area" id="output" contenteditable="true"># Generated code will appear here after you analyze and select endpoints.</div>
+        <div class="code-footer">
+          <button class="btn btn-cyan" onclick="downloadCode()">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </button>
+          <button class="btn btn-violet" onclick="openGithubModal()">
+            <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            Push to GitHub
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="card" id="step4">
+      <div class="card-hd" onclick="toggleCard('cb4','cv4')">
+        <div class="card-hd-l">
+          <div class="card-ico ico-g"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div><div class="card-title">Export</div><div class="card-sub">step 4 — download or deploy</div></div>
+        </div>
+        <span class="chevron open" id="cv4">&#9660;</span>
+      </div>
+      <div class="card-body" id="cb4">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:13px">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em">Local File</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.6">Download the generated file and run it in your own environment.</div>
+            <button class="btn btn-cyan" style="width:100%;justify-content:center" onclick="downloadCode()">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download File
+            </button>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:13px">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em">GitHub Repo</div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.6">Create a new repository and push the generated file via GitHub API.</div>
+            <button class="btn btn-violet" style="width:100%;justify-content:center" onclick="openGithubModal()">
+              <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              Push to GitHub
+            </button>
+          </div>
+        </div>
+
+        <!-- Terminal commands panel -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+          <div style="padding:8px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:7px">
+              <svg style="width:12px;height:12px;stroke:var(--text3);stroke-width:2;fill:none" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">terminal commands</span>
+            </div>
+            <button class="btn btn-ghost" style="padding:3px 8px;font-size:10px" onclick="copyCmd()" id="btn-copy-cmd">Copy</button>
+          </div>
+          <div id="cmd-block" style="padding:12px 14px;font-family:var(--mono);font-size:11px;line-height:2;color:var(--cyan)">
+            <span style="color:var(--text3)"># install deps</span><br>
+            <span id="cmd-install">pip install fastapi uvicorn</span><br>
+            <span style="color:var(--text3)"># run</span><br>
+            <span id="cmd-run">uvicorn main:app --reload</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- GitHub Modal -->
+<div class="modal-wrap" id="githubModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title">push to github</span>
+      <button class="modal-x" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div class="modal-bd">
+      <div class="info-block">
+        <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>
+          <div class="info-title">Token security</div>
+          <div class="info-text">Your token is never stored or logged. Use a fine-grained PAT with Contents: Read &amp; Write permission only.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Repository Name</label>
+        <input type="text" id="repoName" placeholder="my-api"/>
+        <div class="field-hint">Created automatically if it does not exist. Full URL accepted.</div>
+      </div>
+      <div class="field">
+        <label>Personal Access Token</label>
+        <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"/>
+        <div class="field-hint">Settings → Developer settings → Fine-grained personal access tokens</div>
+      </div>
+      <div id="github-error" class="err"></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="pushToGithub()" id="btn-push">
+        <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        Push Repository
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-shelf" id="toastShelf"></div>
+
+<script>
+let selectedFile = null;
+let currentMode = "fastapi";
+let selectedEndpoints = new Set();
+
+const fileInput = document.getElementById("fileInput");
+const uploadZone = document.getElementById("uploadZone");
+
+fileInput.addEventListener("change", e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
+uploadZone.addEventListener("drop", e => {
+  e.preventDefault(); uploadZone.classList.remove("drag");
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith(".py")) setFile(f);
+  else toast("Drop a .py file", "error");
+});
+
+function setFile(f) {
+  selectedFile = f;
+  document.getElementById("upload-label").textContent = "File loaded";
+  document.getElementById("file-pill-wrap").innerHTML =
+    `<div class="file-pill">${f.name} <span style="color:var(--text3)">${(f.size/1024).toFixed(1)} KB</span></div>`;
+  document.getElementById("btn-analyze").disabled = false;
+  document.getElementById("st-file").textContent = f.name;
+  document.getElementById("st-file").className = "stat-v file";
+}
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById("btn-fastapi").classList.toggle("active", m === "fastapi");
+  document.getElementById("btn-streamlit").classList.toggle("active", m === "streamlit");
+  document.getElementById("st-mode").textContent = m;
+  const badge = document.getElementById("top-mode-badge");
+  badge.textContent = m === "fastapi" ? "FastAPI" : "Streamlit";
+  badge.className = "mode-pill " + (m === "fastapi" ? "pill-i" : "pill-v");
+  document.getElementById("code-lang-label").textContent = m === "fastapi" ? "python · main.py" : "python · app.py";
+  // Update terminal commands
+  if (m === "fastapi") {
+    document.getElementById("cmd-install").textContent = "pip install fastapi uvicorn";
+    document.getElementById("cmd-run").textContent = "uvicorn main:app --reload";
+  } else {
+    document.getElementById("cmd-install").textContent = "pip install streamlit";
+    document.getElementById("cmd-run").textContent = "streamlit run app.py";
+  }
+}
+
+function setLoading(on) {
+  document.getElementById("prog").classList.toggle("loading", on);
+  if (!on) document.getElementById("prog").style.width = "0%";
+}
+
+function toggleCard(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  body.classList.toggle("hidden");
+  chev.classList.toggle("open", !body.classList.contains("hidden"));
+}
+
+function scrollToId(id) {
+  document.getElementById(id).scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setNavActive(num) {
+  [1,2,3,4].forEach(n => {
+    const el = document.getElementById("nav-s"+n);
+    if (!el) return;
+    el.classList.remove("active","done");
+    if (n < num) el.classList.add("done");
+    if (n === num) el.classList.add("active");
+  });
+}
+
+function toast(msg, type = "success") {
+  const colors = { success: "var(--cyan)", error: "var(--red)", info: "var(--indigo)" };
+  const icons  = { success: "&#10003;", error: "&#10005;", info: "&#9432;" };
+  const shelf = document.getElementById("toastShelf");
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `<span class="toast-icon" style="color:${colors[type]}">${icons[type]}</span><span class="toast-msg">${msg}</span>`;
+  shelf.appendChild(t);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 160); }, 3200);
+}
+
+function showErr(id, msg) { const el = document.getElementById(id); if (el) { el.textContent = msg; el.style.display = "block"; } }
+function clearErr(id) { const el = document.getElementById(id); if (el) { el.textContent = ""; el.style.display = "none"; } }
+
+async function analyze() {
+  if (!selectedFile) return toast("Upload a .py file first", "error");
+  clearErr("analyze-error");
+  setLoading(true);
+  document.getElementById("btn-analyze").disabled = true;
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+  try {
+    const res = await fetch(`/analyze`, { method: "POST", body: fd });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail||`HTTP ${res.status}`); }
+    const data = await res.json();
+    const eps = data.available_endpoints || [];
+    if (!eps.length) {
+      showErr("analyze-error", "No functions or class methods found in this file.");
+    } else {
+      renderEndpoints(eps);
+      document.getElementById("ep-subtitle").textContent = `${eps.length} endpoint${eps.length>1?"s":""} found`;
+      setNavActive(2); scrollToId("step2");
+      toast(`${eps.length} endpoint${eps.length>1?"s":""} discovered`);
+    }
+  } catch(e) { showErr("analyze-error", e.message); toast("Analysis failed", "error"); }
+  setLoading(false);
+  document.getElementById("btn-analyze").disabled = false;
+}
+
+function renderEndpoints(eps) {
+  selectedEndpoints.clear(); updateEpStatus();
+  const grid = eps.map(ep => {
+    const isCls = ep.includes(".");
+    const safe = ep.replace(/[^a-zA-Z0-9_.]/g,"");
+    return `<div class="ep-item" data-ep="${safe}" onclick="toggleEp(this,'${safe}')">
+      <div class="ep-box"><span class="ep-tick">&#10003;</span></div>
+      <span class="ep-name" title="${safe}">${safe}</span>
+      <span class="ep-badge ${isCls?'ep-cls':'ep-fn'}">${isCls?'cls':'fn'}</span>
+    </div>`;
+  }).join("");
+  document.getElementById("endpoint-content").innerHTML = `
+    <div class="ep-toolbar">
+      <span class="ep-count" id="ep-count-label">0 of ${eps.length} selected</span>
+      <button class="btn btn-ghost" style="padding:4px 9px;font-size:10px" onclick="selectAllEp()">Select all</button>
+    </div>
+    <div class="ep-grid">${grid}</div>`;
+}
+
+function toggleEp(el, ep) {
+  el.classList.toggle("sel");
+  el.classList.contains("sel") ? selectedEndpoints.add(ep) : selectedEndpoints.delete(ep);
+  updateEpStatus();
+}
+function selectAllEp() {
+  document.querySelectorAll(".ep-item").forEach(el => { el.classList.add("sel"); selectedEndpoints.add(el.dataset.ep); });
+  updateEpStatus();
+}
+function updateEpStatus() {
+  const total = document.querySelectorAll(".ep-item").length;
+  const sel = selectedEndpoints.size;
+  const lbl = document.getElementById("ep-count-label");
+  if (lbl) lbl.textContent = `${sel} of ${total} selected`;
+  document.getElementById("st-ep").textContent = `${sel} selected`;
+  document.getElementById("btn-generate").disabled = sel === 0;
+}
+
+async function generate() {
+  if (!selectedEndpoints.size) return toast("Select at least one endpoint", "error");
+  clearErr("analyze-error2");
+  setLoading(true);
+  document.getElementById("btn-generate").disabled = true;
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+  fd.append("selected", [...selectedEndpoints].join(","));
+  fd.append("mode", currentMode);
+  try {
+    const res = await fetch(`/generate`, { method: "POST", body: fd });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail||`HTTP ${res.status}`); }
+    const code = await res.text();
+    document.getElementById("output").textContent = code;
+    setNavActive(3); scrollToId("step3");
+    toast("Code generated successfully");
+  } catch(e) { showErr("analyze-error2", e.message); toast("Generation failed", "error"); }
+  setLoading(false);
+  document.getElementById("btn-generate").disabled = selectedEndpoints.size === 0;
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(document.getElementById("output").textContent).then(() => toast("Copied to clipboard"));
+}
+function downloadCode() {
+  const code = document.getElementById("output").textContent;
+  if (code.startsWith("#")) return toast("Generate code first", "error");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([code], { type: "text/plain" }));
+  a.download = currentMode === "fastapi" ? "main.py" : "app.py";
+  a.click();
+  setNavActive(4); scrollToId("step4");
+  toast("File downloaded");
+}
+
+function copyCmd() {
+  const install = document.getElementById("cmd-install").textContent;
+  const run = document.getElementById("cmd-run").textContent;
+  navigator.clipboard.writeText(`${install}\n${run}`).then(() => toast("Commands copied"));
+}
+
+function openGithubModal() { document.getElementById("githubModal").classList.add("open"); }
+function closeModal() { document.getElementById("githubModal").classList.remove("open"); clearErr("github-error"); }
+document.getElementById("githubModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("githubModal")) closeModal();
+});
+
+async function pushToGithub() {
+  let repo = document.getElementById("repoName").value.trim();
+  const token = document.getElementById("githubToken").value.trim();
+  clearErr("github-error");
+  if (!repo || !token) return showErr("github-error", "Repository name and token are both required.");
+  if (repo.includes("github.com")) repo = repo.split("/").pop();
+  const preTab = window.open("about:blank", "_blank");
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+  fd.append("selected", [...selectedEndpoints].join(","));
+  fd.append("mode", currentMode);
+  fd.append("repo_name", repo);
+  fd.append("github_token", token);
+  document.getElementById("btn-push").disabled = true;
+  setLoading(true);
+  try {
+    const res = await fetch(`/github/push`, { method: "POST", body: fd });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||e.detail||`HTTP ${res.status}`); }
+    const data = await res.json();
+    if (data.repo_url) {
+      if (preTab && !preTab.closed) preTab.location.href = data.repo_url;
+      toast("Repository pushed successfully"); closeModal();
+    } else if (data.error) {
+      if (preTab && !preTab.closed) preTab.close();
+      throw new Error(typeof data.error === "string" ? data.error : JSON.stringify(data.error));
+    }
+  } catch(e) {
+    if (preTab && !preTab.closed) preTab.close();
+    showErr("github-error", e.message); toast("Push failed", "error");
+  }
+  setLoading(false);
+  document.getElementById("btn-push").disabled = false;
+}
+</script>
+</body>
+</html>
