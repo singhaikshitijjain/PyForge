@@ -146,12 +146,16 @@ def build_streamlit_app(
     for func in functions:
         if func["name"] in selected:
             args = func["args"]
+
             ui_code.append(f"\nst.subheader('{func['name']}')")
+
             for a in args:
-                ui_code.append(f"{a} = st.text_input('{a}')")
+                ui_code.append(f"{a} = st.text_input('{a}', key='{func['name']}_{a}')")
+
             call_args = ", ".join(args)
+
             ui_code.append(f"""
-if st.button("Run {func['name']}"):
+if st.button("Run {func['name']}", key="btn_{func['name']}"):
     try:
         result = {func['name']}({call_args})
         st.success(result)
